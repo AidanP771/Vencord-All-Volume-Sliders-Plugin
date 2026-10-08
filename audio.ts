@@ -18,8 +18,9 @@ export const logger = new Logger("AllVolumeSliders");
  */
 interface DiscordSound {
     name: string;
-    _type?: unknown;
     _volume?: number;
+    /** Decides the output device: DEFAULT plays on Discord's normal device, anything else on a secondary one */
+    outputChannel?: unknown;
     _audio?: Promise<HTMLAudioElement> | HTMLAudioElement | null;
     play?(): void;
 }
@@ -32,6 +33,16 @@ export const seenSounds = new Set<string>();
 /** Sound instances we've scaled, so slider changes can be applied while they play (e.g. a ringing call) */
 const liveSounds = new Set<WeakRef<DiscordSound>>();
 const trackedSounds = new WeakSet<DiscordSound>();
+/** outputChannel Discord uses for each sound name, so previews play on the same device as the real sound */
+const seenChannels = new Map<string, unknown>();
+
+/** Previews pass this when we don't know a sound's channel yet; the patch turns it into Discord's DEFAULT channel */
+const PREVIEW_DEFAULT_CHANNEL = "vc-avs-default";
+
+/** Called from the patched Sound class (sink selection) */
+export function resolveOutputChannel(channel: unknown, defaultChannel: unknown) {
+    return channel === PREVIEW_DEFAULT_CHANNEL ? defaultChannel : channel;
+}
 
 export function getSoundVolume(name: string) {
     return settings.store.volumes[name] ?? 100;
@@ -53,6 +64,7 @@ export function getMultiplier(sound: DiscordSound | undefined) {
         const name = typeof sound?.name === "string" ? sound.name : undefined;
         if (name) {
             seenSounds.add(name);
+            if (sound!.outputChannel !== PREVIEW_DEFAULT_CHANNEL) seenChannels.set(name, sound!.outputChannel);
             if (!trackedSounds.has(sound!)) {
                 trackedSounds.add(sound!);
                 liveSounds.add(new WeakRef(sound!));
@@ -136,7 +148,8 @@ export function getAllSoundNames() {
 
 // ---------- Preview ----------
 
-type SoundClass = new (name: string, type: unknown, volume: number) => DiscordSound;
+// constructor(name, unused, volume, outputChannel, trackNotificationFailure = false)
+type SoundClass = new (name: string, unused: unknown, volume: number, outputChannel: unknown) => DiscordSound;
 let soundClass: SoundClass | undefined;
 
 const isSoundClass = (v: any): v is SoundClass =>
@@ -164,15 +177,6 @@ function getSoundClass() {
         } catch { }
     }
 
-    return undefined;
-}
-
-/** The "type" arg Discord passes to its Sound constructor, copied from a real sound if we've seen one */
-function getSampleType() {
-    for (const ref of liveSounds) {
-        const sample = ref.deref();
-        if (sample && "_type" in sample) return sample._type;
-    }
     return undefined;
 }
 
@@ -208,10 +212,12 @@ export function previewSound(name: string): PreviewResult {
     const Sound = getSoundClass();
     if (Sound) {
         try {
-            const sound = new Sound(name, getSampleType(), 1);
+            // Use the same output channel Discord used for this sound, or the default channel if we haven't seen it
+            const channel = seenChannels.has(name) ? seenChannels.get(name) : PREVIEW_DEFAULT_CHANNEL;
+            const sound = new Sound(name, undefined, 1, channel);
             if (sound.name === name && typeof sound._volume === "number" && typeof sound.play === "function") {
                 sound.play();
-                logger.info(`Preview of ${name}: played via Discord's Sound class at ${Math.round(mult * 100)}%`);
+                logger.info(`Preview of ${name}: played via Discord's Sound class at ${Math.round(mult * 100)}% (output channel: ${String(channel)})`);
                 return "played";
             }
             logger.warn(`Preview of ${name}: Sound class has an unexpected shape`, sound);

@@ -7,7 +7,7 @@ import "./style.css";
 
 import definePlugin from "@utils/types";
 
-import { getMultiplier, previewSound, reapplyVolumes, seenSounds } from "./audio";
+import { getMultiplier, previewSound, reapplyVolumes, resolveOutputChannel, seenSounds } from "./audio";
 import { openVolumeModal, VolumeSlidersPanelButton } from "./components/QuickAccess";
 import { settings } from "./settings";
 
@@ -23,10 +23,22 @@ export default definePlugin({
             // Discord's Sound class. Every "new Audio" volume it sets goes through
             // Math.min(<MediaEngineStore>.getOutputVolume()/100*this._volume, 1)
             find: "ensureAudio(){",
-            replacement: {
-                match: /(?=Math\.min\(\i\.\i\.getOutputVolume\(\)\/100)/g,
-                replace: "$self.getMultiplier(this)*"
-            }
+            replacement: [
+                {
+                    match: /(?=Math\.min\(\i\.\i\.getOutputVolume\(\)\/100)/g,
+                    replace: "$self.getMultiplier(this)*"
+                },
+                {
+                    // `sound.volume = x` sets the audio element directly, so scale that too
+                    match: /(set volume\((\i)\)\{.{0,80}?\.then\(\i=>\i\.volume=)\2(?=\))/,
+                    replace: "$1$self.getMultiplier(this)*$2"
+                },
+                {
+                    // setSinkId(outputChannel===DEFAULT ? normalDevice : otherDevice): lets previews ask for the normal device
+                    match: /this\.outputChannel===(\i\.\i\.DEFAULT)/,
+                    replace: "$self.resolveOutputChannel(this.outputChannel,$1)===$1"
+                }
+            ]
         },
         {
             // Account panel (mute/deafen/settings buttons). Same spot GameActivityToggle uses.
@@ -46,6 +58,7 @@ export default definePlugin({
 
     VolumeSlidersPanelButton,
     getMultiplier,
+    resolveOutputChannel,
     /** For debugging in the console: names of every sound played this session */
     seenSounds,
     /** For debugging in the console: previewSound("message1") logs which playback path was used */
