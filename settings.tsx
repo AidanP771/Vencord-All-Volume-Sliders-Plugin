@@ -16,6 +16,8 @@ export const settings = definePluginSettings({
         markers: [0, 25, 50, 75, 100],
         default: 100,
         stickToMarkers: false,
+        // Rendered by VolumeSettings (with a number box) instead of Vencord's default slider
+        hidden: true,
         onChange: () => reapplyVolumes(),
     },
     ringtoneVolume: {
@@ -24,6 +26,8 @@ export const settings = definePluginSettings({
         markers: [0, 25, 50, 75, 100],
         default: 100,
         stickToMarkers: false,
+        // Rendered by VolumeSettings (with a number box) instead of Vencord's default slider
+        hidden: true,
         onChange: () => reapplyVolumes(),
     },
     showPanelButton: {

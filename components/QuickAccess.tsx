@@ -35,7 +35,7 @@ function VolumeModal({ modalProps }: { modalProps: RenderModalProps; }) {
             subtitle="Per-sound volume for every Discord sound"
             actions={[{ text: "Done", variant: "primary", onClick: modalProps.onClose }]}
         >
-            <VolumeSettings showGlobal />
+            <VolumeSettings />
         </Modal>
     );
 }

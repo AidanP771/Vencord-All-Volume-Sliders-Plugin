@@ -6,7 +6,7 @@
 import { Button } from "@components/Button";
 import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
-import { Slider, TextInput, useMemo, useState } from "@webpack/common";
+import { Slider, TextInput, useEffect, useMemo, useState } from "@webpack/common";
 
 import { getAllSoundNames, previewSound, reapplyVolumes } from "../audio";
 import { settings } from "../settings";
@@ -22,8 +22,46 @@ function setVolume(name: string, value: number | undefined) {
     reapplyVolumes();
 }
 
+/** Number box for typing an exact volume. Commits on Enter or when it loses focus; invalid input reverts. */
+function VolumeInput({ value, label, onCommit }: { value: number; label: string; onCommit(v: number): void; }) {
+    const [text, setText] = useState(String(value));
+    useEffect(() => setText(String(value)), [value]);
+
+    const commit = () => {
+        const trimmed = text.trim().replace(/%$/, "");
+        const n = Number(trimmed);
+        if (!trimmed || !Number.isFinite(n)) {
+            setText(String(value));
+            return;
+        }
+        const v = Math.round(Math.min(Math.max(n, 0), 100));
+        setText(String(v));
+        if (v !== value) onCommit(v);
+    };
+
+    return (
+        <label className={cl("input-wrap")}>
+            <input
+                className={cl("input")}
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={text}
+                aria-label={`${label} volume (0-100)`}
+                onChange={e => setText(e.currentTarget.value)}
+                onBlur={commit}
+                onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            />
+            <span className={cl("input-suffix")}>%</span>
+        </label>
+    );
+}
+
 function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; volume: number; sliderKey: number; onReset(): void; }) {
     const [previewFailed, setPreviewFailed] = useState(false);
+    // Sliders are uncontrolled, so remount after a typed value to move the handle
+    const [typedNonce, setTypedNonce] = useState(0);
     const muted = volume === 0;
 
     return (
@@ -33,7 +71,7 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
                 <code className={cl("id")}>{sound.name}</code>
             </div>
             <Slider
-                key={sliderKey}
+                key={`${sliderKey}-${typedNonce}`}
                 className={cl("slider")}
                 initialValue={volume}
                 minValue={0}
@@ -42,6 +80,11 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
                 stickToMarkers={false}
                 onValueChange={v => setVolume(sound.name, v)}
                 onValueRender={v => `${Math.round(v)}%`}
+            />
+            <VolumeInput
+                value={volume}
+                label={sound.label}
+                onCommit={v => { setVolume(sound.name, v); setTypedNonce(n => n + 1); }}
             />
             <div className={cl("buttons")}>
                 <Button
@@ -75,6 +118,9 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
 }
 
 function GlobalSlider({ label, description, value, onChange }: { label: string; description: string; value: number; onChange(v: number): void; }) {
+    const [typedNonce, setTypedNonce] = useState(0);
+    const set = (v: number) => { onChange(Math.round(v)); reapplyVolumes(); };
+
     return (
         <div className={cl("row")}>
             <div className={cl("label")}>
@@ -82,20 +128,28 @@ function GlobalSlider({ label, description, value, onChange }: { label: string; 
                 <span className={cl("id")}>{description}</span>
             </div>
             <Slider
+                key={typedNonce}
                 className={cl("slider")}
                 initialValue={value}
                 minValue={0}
                 maxValue={100}
                 markers={[0, 25, 50, 75, 100]}
                 stickToMarkers={false}
-                onValueChange={v => { onChange(Math.round(v)); reapplyVolumes(); }}
+                onValueChange={set}
                 onValueRender={v => `${Math.round(v)}%`}
             />
+            <VolumeInput
+                value={value}
+                label={label}
+                onCommit={v => { set(v); setTypedNonce(n => n + 1); }}
+            />
+            {/* keeps the grid aligned with sound rows */}
+            <div />
         </div>
     );
 }
 
-/** Master + Ringtone sliders. The plugin settings page renders these itself, so only the quick-access modal needs them. */
+/** Master + Ringtone sliders (custom instead of Vencord's built-in sliders so they also get a number box) */
 function GlobalSliders() {
     const { masterVolume, ringtoneVolume } = settings.use(["masterVolume", "ringtoneVolume"]);
 
@@ -117,7 +171,7 @@ function GlobalSliders() {
     );
 }
 
-export function VolumeSettings({ showGlobal = false }: { showGlobal?: boolean; }) {
+export function VolumeSettings() {
     const { volumes } = settings.use(["volumes"]);
     const [query, setQuery] = useState("");
     const [collapsed, setCollapsed] = useState<Set<Category>>(() => new Set(["Other"]));
@@ -147,10 +201,10 @@ export function VolumeSettings({ showGlobal = false }: { showGlobal?: boolean; }
 
     return (
         <div className={cl("root")}>
-            {showGlobal && <GlobalSliders />}
+            <GlobalSliders />
             <HeadingTertiary>Individual sounds</HeadingTertiary>
             <Paragraph className={cl("hint")}>
-                Each slider multiplies with the master volume (and the ringtone volume for ringtones). Sounds Discord adds
+                Drag a slider or type a value (0-100). Each sound multiplies with the master volume (and the ringtone volume for ringtones). Sounds Discord adds
                 later are listed under "Other" once they're found.
             </Paragraph>
 
