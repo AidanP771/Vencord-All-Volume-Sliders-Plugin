@@ -2,12 +2,18 @@
 #
 #   irm https://raw.githubusercontent.com/AidanP771/Vencord-All-Volume-Sliders-Plugin/main/install.ps1 | iex
 #
+# Dev/testing build (installs the plugin from the dev branch):
+#
+#   $env:AVS_BRANCH="dev"; irm https://raw.githubusercontent.com/AidanP771/Vencord-All-Volume-Sliders-Plugin/dev/install.ps1 | iex
+#
 # Builds Vencord from source with this plugin included, then injects it into Discord.
-# Run the same command again any time to update.
+# Run the same command again any time to update. To go back to the stable version,
+# run the main command in a new PowerShell window.
 
 $ErrorActionPreference = "Stop"
 
 $PluginRepo = "https://github.com/AidanP771/Vencord-All-Volume-Sliders-Plugin"
+$PluginBranch = if ($env:AVS_BRANCH) { $env:AVS_BRANCH } else { "main" }
 $VencordRepo = "https://github.com/Vendicated/Vencord"
 $VencordDir = if ($env:VENCORD_DIR) { $env:VENCORD_DIR } else { Join-Path $env:USERPROFILE "Vencord" }
 $PluginDir = Join-Path $VencordDir "src\userplugins\allVolumeSliders"
@@ -41,6 +47,23 @@ function Sync-Repo($url, $dir) {
     if ($LASTEXITCODE -ne 0) { throw "git failed for $url" }
 }
 
+function Sync-Plugin($url, $dir, $branch) {
+    # A symlinked plugin folder is a dev checkout; never touch it
+    if ((Test-Path $dir) -and ((Get-Item $dir -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        Write-Host "Plugin folder is a symlink (dev setup), leaving it as-is." -ForegroundColor Yellow
+        return
+    }
+    if (Test-Path (Join-Path $dir ".git")) {
+        git -C $dir fetch --depth 1 origin $branch
+        if ($LASTEXITCODE -ne 0) { throw "Couldn't fetch branch '$branch' of the plugin" }
+        # Fails safely (instead of discarding anything) if the folder has local edits
+        git -C $dir checkout -B $branch FETCH_HEAD
+    } else {
+        git clone --depth 1 --branch $branch $url $dir
+    }
+    if ($LASTEXITCODE -ne 0) { throw "git failed for the plugin (branch '$branch')" }
+}
+
 Ensure-Tool git "Git.Git" "Git"
 Ensure-Tool node "OpenJS.NodeJS.LTS" "Node.js"
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
@@ -52,9 +75,9 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
 Step "Getting Vencord source in $VencordDir"
 Sync-Repo $VencordRepo $VencordDir
 
-Step "Getting AllVolumeSliders"
+Step "Getting AllVolumeSliders ($PluginBranch branch)"
 New-Item -ItemType Directory -Force (Split-Path $PluginDir) | Out-Null
-Sync-Repo $PluginRepo $PluginDir
+Sync-Plugin $PluginRepo $PluginDir $PluginBranch
 
 Push-Location $VencordDir
 try {

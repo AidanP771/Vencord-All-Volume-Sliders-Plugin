@@ -74,7 +74,50 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
     );
 }
 
-export function VolumeSettings() {
+function GlobalSlider({ label, description, value, onChange }: { label: string; description: string; value: number; onChange(v: number): void; }) {
+    return (
+        <div className={cl("row")}>
+            <div className={cl("label")}>
+                <span className={cl("name")}>{label}</span>
+                <span className={cl("id")}>{description}</span>
+            </div>
+            <Slider
+                className={cl("slider")}
+                initialValue={value}
+                minValue={0}
+                maxValue={100}
+                markers={[0, 25, 50, 75, 100]}
+                stickToMarkers={false}
+                onValueChange={v => { onChange(Math.round(v)); reapplyVolumes(); }}
+                onValueRender={v => `${Math.round(v)}%`}
+            />
+        </div>
+    );
+}
+
+/** Master + Ringtone sliders. The plugin settings page renders these itself, so only the quick-access modal needs them. */
+function GlobalSliders() {
+    const { masterVolume, ringtoneVolume } = settings.use(["masterVolume", "ringtoneVolume"]);
+
+    return (
+        <section className={cl("category")}>
+            <GlobalSlider
+                label="Master volume"
+                description="Scales every sound below"
+                value={masterVolume}
+                onChange={v => settings.store.masterVolume = v}
+            />
+            <GlobalSlider
+                label="Ringtone volume"
+                description="Incoming call ringtone + all variants"
+                value={ringtoneVolume}
+                onChange={v => settings.store.ringtoneVolume = v}
+            />
+        </section>
+    );
+}
+
+export function VolumeSettings({ showGlobal = false }: { showGlobal?: boolean; }) {
     const { volumes } = settings.use(["volumes"]);
     const [query, setQuery] = useState("");
     const [collapsed, setCollapsed] = useState<Set<Category>>(() => new Set(["Other"]));
@@ -104,6 +147,7 @@ export function VolumeSettings() {
 
     return (
         <div className={cl("root")}>
+            {showGlobal && <GlobalSliders />}
             <HeadingTertiary>Individual sounds</HeadingTertiary>
             <Paragraph className={cl("hint")}>
                 Each slider multiplies with the master volume (and the ringtone volume for ringtones). Sounds Discord adds

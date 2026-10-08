@@ -26,6 +26,11 @@ export const settings = definePluginSettings({
         stickToMarkers: false,
         onChange: () => reapplyVolumes(),
     },
+    showPanelButton: {
+        type: OptionType.BOOLEAN,
+        description: "Show a quick-access button next to Mute/Deafen that opens these sliders",
+        default: true,
+    },
     /** Per-sound volume in percent (0-100). Missing entries mean 100. */
     volumes: {
         type: OptionType.CUSTOM,

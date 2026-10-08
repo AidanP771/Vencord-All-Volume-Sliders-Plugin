@@ -8,6 +8,8 @@ Individual volume sliders for every sound Discord plays:
 - **Messages, mute/deafen, push-to-talk, streams, activities** and anything else Discord ships. Unknown sounds are found automatically and listed under "Other".
 - A **master volume** that scales everything, plus preview, mute, reset and search for each sound.
 
+- A **quick-access button** next to Mute/Deafen (bottom left). It opens all the sliders in a pop-up, so you don't have to dig through the plugin settings. You can hide it with the "Show a quick-access button" setting. If you use Vencord's Toolbox plugin, the sliders are also under **Open Sound Volumes** there.
+
 Volumes go from 0 to 100% of Discord's normal level. Voice chat audio and the soundboard aren't affected, since Discord already has its own sliders for those.
 
 ## Install (one line, Windows)
@@ -23,6 +25,16 @@ The command installs Git, Node.js and pnpm if they're missing (via winget). It t
 **To update**, run the same command again. To use a different folder, set `$env:VENCORD_DIR = "D:\somewhere\Vencord"` first.
 
 > Already using the normal Vencord installer? This replaces it with a from-source build. Your Vencord settings and plugins are kept.
+
+### Testing the dev version
+
+To try unreleased changes from the `dev` branch:
+
+```powershell
+$env:AVS_BRANCH="dev"; irm https://raw.githubusercontent.com/AidanP771/Vencord-All-Volume-Sliders-Plugin/dev/install.ps1 | iex
+```
+
+To switch back to the stable version, open a **new** PowerShell window and run the normal one-liner above.
 
 ## Manual install
 
@@ -69,6 +81,7 @@ A second account (on your phone or in a browser) helps a lot here.
 - [ ] **Ringtone**: the second account calls you. Drag the Ringtone slider while it rings; the volume should change straight away.
 - [ ] **Messages**: the second account DMs you.
 - [ ] **Mute/deafen**: toggle them in a voice channel.
+- [ ] **Quick access**: the sliders button appears next to Mute/Deafen and opens the pop-up. Changes made there show up in the plugin settings too, and turning the setting off hides the button.
 - [ ] The master slider scales everything, and your settings survive a full Discord restart.
 
 ## Troubleshooting
