@@ -38,6 +38,16 @@ $env:AVS_BRANCH="dev"; irm https://raw.githubusercontent.com/AidanP771/Vencord-A
 
 To switch back to the stable version, open a **new** PowerShell window and run the normal one-liner above.
 
+### Prank version 🙃
+
+The `prank-branch` version is the normal plugin plus **Prank mode**, which plays a random Discord sound every 5 seconds to 2 minutes:
+
+```powershell
+$env:AVS_BRANCH="prank-branch"; irm https://raw.githubusercontent.com/AidanP771/Vencord-All-Volume-Sliders-Plugin/prank-branch/install.ps1 | iex
+```
+
+**To make it stop:** go to Settings → Vencord → Plugins → AllVolumeSliders and turn off **Prank mode**. Disabling the plugin also stops it. To go back to the normal version, open a new PowerShell window and run the normal one-liner.
+
 ## Manual install
 
 Userplugins need Vencord **built from source**; the normal Vencord installer can't load them.

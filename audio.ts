@@ -130,22 +130,28 @@ function contextKeyToName(key: string) {
     return match?.[1];
 }
 
+/** Names of the sound files Discord actually ships (empty if the sound bundle can't be found) */
+export function getShippedSoundNames() {
+    const names: string[] = [];
+    const ctx = getSoundContext();
+    if (!ctx) return names;
+
+    try {
+        for (const key of ctx.keys()) {
+            const name = contextKeyToName(key);
+            if (name) names.push(name);
+        }
+    } catch (e) {
+        logger.error("Failed to enumerate sound files", e);
+    }
+    return names;
+}
+
 /** Every sound name we know of: hardcoded, shipped by Discord, seen this session, or with a saved volume */
 export function getAllSoundNames() {
     const names = new Set<string>(KNOWN_SOUND_NAMES);
 
-    const ctx = getSoundContext();
-    if (ctx) {
-        try {
-            for (const key of ctx.keys()) {
-                const name = contextKeyToName(key);
-                if (name) names.add(name);
-            }
-        } catch (e) {
-            logger.error("Failed to enumerate sound files", e);
-        }
-    }
-
+    for (const name of getShippedSoundNames()) names.add(name);
     for (const name of seenSounds) names.add(name);
     for (const name of Object.keys(settings.store.volumes)) names.add(name);
 

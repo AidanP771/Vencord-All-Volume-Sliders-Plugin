@@ -9,6 +9,7 @@ import definePlugin from "@utils/types";
 
 import { getMultiplier, previewSound, reapplyVolumes, resolveOutputChannel, seenSounds } from "./audio";
 import { openVolumeModal, VolumeSlidersPanelButton } from "./components/QuickAccess";
+import { startPrank, stopPrank } from "./prank";
 import { settings } from "./settings";
 
 export default definePlugin({
@@ -66,5 +67,10 @@ export default definePlugin({
 
     start() {
         reapplyVolumes();
+        if (settings.store.prankMode) startPrank();
+    },
+
+    stop() {
+        stopPrank();
     },
 });
