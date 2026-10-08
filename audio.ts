@@ -23,6 +23,8 @@ interface DiscordSound {
     outputChannel?: unknown;
     _audio?: Promise<HTMLAudioElement> | HTMLAudioElement | null;
     play?(): void;
+    /** Pauses and tears down the audio element */
+    stop?(): void;
 }
 
 const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
@@ -33,6 +35,8 @@ export const seenSounds = new Set<string>();
 /** Sound instances we've scaled, so slider changes can be applied while they play (e.g. a ringing call) */
 const liveSounds = new Set<WeakRef<DiscordSound>>();
 const trackedSounds = new WeakSet<DiscordSound>();
+/** Previews stopped while still loading. Discord already queued play() for them, so they're forced to 0% */
+const cancelledSounds = new WeakSet<DiscordSound>();
 /** outputChannel Discord uses for each sound name, so previews play on the same device as the real sound */
 const seenChannels = new Map<string, unknown>();
 
@@ -61,6 +65,8 @@ export function computeMultiplier(name?: string) {
 /** Called from the patched Sound class with `this` */
 export function getMultiplier(sound: DiscordSound | undefined) {
     try {
+        if (sound && cancelledSounds.has(sound)) return 0;
+
         const name = typeof sound?.name === "string" ? sound.name : undefined;
         if (name) {
             seenSounds.add(name);
@@ -181,6 +187,8 @@ function getSoundClass() {
 }
 
 let previewAudio: HTMLAudioElement | undefined;
+/** Sound instances created by previews, so they can be stopped even while still loading */
+const previewSounds = new Set<DiscordSound>();
 
 /** Fallback: play the file directly. Note this uses the Windows default output device, not Discord's. */
 function previewWithAudioElement(name: string) {
@@ -216,7 +224,10 @@ export function previewSound(name: string): PreviewResult {
             const channel = seenChannels.has(name) ? seenChannels.get(name) : PREVIEW_DEFAULT_CHANNEL;
             const sound = new Sound(name, undefined, 1, channel);
             if (sound.name === name && typeof sound._volume === "number" && typeof sound.play === "function") {
+                // Finished previews clear their _audio, so drop those before adding
+                for (const s of previewSounds) if (s._audio == null) previewSounds.delete(s);
                 sound.play();
+                previewSounds.add(sound);
                 logger.info(`Preview of ${name}: played via Discord's Sound class at ${Math.round(mult * 100)}% (output channel: ${String(channel)})`);
                 return "played";
             }
@@ -239,4 +250,53 @@ export function previewSound(name: string): PreviewResult {
 
     logger.error(`Preview of ${name}: no way to play it was found`);
     return "unavailable";
+}
+
+/** Stops every sound we can reach: previews plus any Discord sound that's currently playing (e.g. a ringtone). Returns how many were stopped. */
+export async function stopAllSounds() {
+    const stopPreview = (sound: DiscordSound) => {
+        cancelledSounds.add(sound);
+        try {
+            sound.stop?.();
+        } catch (e) {
+            logger.error(`Failed to stop preview of ${sound.name}`, e);
+        }
+    };
+
+    // Previews are stopped unconditionally so one that's still loading doesn't start afterwards
+    let stopped = 0;
+    for (const sound of previewSounds) {
+        if (sound._audio != null) stopped++;
+        stopPreview(sound);
+    }
+
+    const discordSounds: DiscordSound[] = [];
+    for (const ref of liveSounds) {
+        const sound = ref.deref();
+        if (!sound) liveSounds.delete(ref);
+        else if (!previewSounds.has(sound) && sound._audio != null) discordSounds.push(sound);
+    }
+    previewSounds.clear();
+
+    const results = await Promise.all(discordSounds.map(async sound => {
+        try {
+            // Don't hang on a sound that's stuck loading
+            const audio = await Promise.race([sound._audio, new Promise<null>(r => setTimeout(() => r(null), 1000))]);
+            if (!(audio instanceof HTMLAudioElement) || audio.paused) return false;
+            if (typeof sound.stop === "function") sound.stop();
+            else audio.pause();
+            return true;
+        } catch {
+            return false;
+        }
+    }));
+    stopped += results.filter(Boolean).length;
+
+    if (previewAudio && !previewAudio.paused) {
+        previewAudio.pause();
+        stopped++;
+    }
+
+    logger.info(`Stopped ${stopped} sound(s)`);
+    return stopped;
 }

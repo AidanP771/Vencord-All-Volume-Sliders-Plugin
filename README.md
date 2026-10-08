@@ -7,6 +7,7 @@ Individual volume sliders for every sound Discord plays:
 - **Join / Leave**: users joining, leaving or being moved, plus disconnect and reconnect.
 - **Messages, mute/deafen, push-to-talk, streams, activities** and anything else Discord ships. Unknown sounds are found automatically and listed under "Other".
 - A **master volume** that scales everything, plus preview, mute, reset and search for each sound.
+- **Stop all sounds**: one button stops every preview, plus any Discord sound that's playing right now (for example a ringtone). Voice chat isn't affected.
 - **Type an exact value**: every slider has a number box next to it. Type 0–100 and press Enter.
 
 - A **quick-access button** next to Mute/Deafen (bottom left). It opens all the sliders in a pop-up, so you don't have to dig through the plugin settings. You can hide it with the "Show a quick-access button" setting. If you use Vencord's Toolbox plugin, the sliders are also under **Open Sound Volumes** there.

@@ -8,7 +8,7 @@ import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { showToast, Slider, TextInput, useEffect, useMemo, useState } from "@webpack/common";
 
-import { getAllSoundNames, previewSound, reapplyVolumes } from "../audio";
+import { getAllSoundNames, previewSound, reapplyVolumes, stopAllSounds } from "../audio";
 import { settings } from "../settings";
 import { CATEGORIES, Category, getSoundInfo, SoundInfo } from "../sounds";
 
@@ -64,6 +64,11 @@ function previewSoundWithFeedback(name: string, label: string) {
         showToast(`${label} is at 0%. Check the master, ringtone and this sound's volume.`, "failure");
     else if (result === "unavailable")
         showToast(`Couldn't preview ${label}. Open the console (Ctrl+Shift+I) for details.`, "failure");
+}
+
+async function stopAllWithFeedback() {
+    const stopped = await stopAllSounds();
+    showToast(stopped ? `Stopped ${stopped} sound${stopped === 1 ? "" : "s"}` : "Nothing is playing", stopped ? "success" : "message");
 }
 
 function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; volume: number; sliderKey: number; onReset(): void; }) {
@@ -217,6 +222,14 @@ export function VolumeSettings() {
 
             <div className={cl("toolbar")}>
                 <TextInput value={query} onChange={setQuery} placeholder="Search sounds..." />
+                <Button
+                    size="small"
+                    variant="secondary"
+                    title="Stop all previews and any Discord sound that's playing right now (e.g. a ringtone)"
+                    onClick={stopAllWithFeedback}
+                >
+                    ■ Stop all sounds
+                </Button>
                 <Button
                     size="small"
                     variant="dangerSecondary"
