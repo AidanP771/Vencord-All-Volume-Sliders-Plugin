@@ -136,42 +136,101 @@ export function getAllSoundNames() {
 
 // ---------- Preview ----------
 
-let previewAudio: HTMLAudioElement | undefined;
+type SoundClass = new (name: string, type: unknown, volume: number) => DiscordSound;
+let soundClass: SoundClass | undefined;
 
-/** Plays a sound once at the volume it would actually play at. Returns false if nothing could be played. */
-export function previewSound(name: string) {
-    // Preferred: construct Discord's own Sound class (taken from a sound we've already seen) so it goes through the patched path
+const isSoundClass = (v: any): v is SoundClass =>
+    typeof v === "function" && v.prototype != null && "play" in v.prototype &&
+    ("_ensureAudio" in v.prototype || "ensureAudio" in v.prototype);
+
+/** Discord's Sound class: taken from a sound we've seen, or found in webpack so preview works before any sound has played */
+function getSoundClass() {
+    if (soundClass) return soundClass;
+
     for (const ref of liveSounds) {
-        const sample = ref.deref();
-        if (!sample) continue;
-
-        try {
-            const Ctor = sample.constructor as new (name: string, type: unknown, volume: number) => DiscordSound;
-            const sound = new Ctor(name, sample._type, 1);
-            if (sound.name === name && typeof sound._volume === "number" && typeof sound.play === "function") {
-                sound.play();
-                return true;
-            }
-        } catch { }
-        break;
+        const ctor = ref.deref()?.constructor;
+        if (isSoundClass(ctor)) return soundClass = ctor;
     }
 
-    // Fallback: play the file directly from Discord's sound bundle
+    for (const id in cache) {
+        try {
+            const exp = cache[id]?.exports;
+            if (exp == null || (typeof exp !== "object" && typeof exp !== "function")) continue;
+            if (isSoundClass(exp)) return soundClass = exp;
+            for (const key in exp) {
+                const val = exp[key];
+                if (isSoundClass(val)) return soundClass = val;
+            }
+        } catch { }
+    }
+
+    return undefined;
+}
+
+/** The "type" arg Discord passes to its Sound constructor, copied from a real sound if we've seen one */
+function getSampleType() {
+    for (const ref of liveSounds) {
+        const sample = ref.deref();
+        if (sample && "_type" in sample) return sample._type;
+    }
+    return undefined;
+}
+
+let previewAudio: HTMLAudioElement | undefined;
+
+/** Fallback: play the file directly. Note this uses the Windows default output device, not Discord's. */
+function previewWithAudioElement(name: string) {
     const ctx = getSoundContext();
     if (!ctx) return false;
 
-    try {
-        const mod = ctx(`./${name}.mp3`);
-        const url: unknown = typeof mod === "string" ? mod : mod?.default;
-        if (typeof url !== "string") return false;
+    const mod = ctx(`./${name}.mp3`);
+    const url: unknown = typeof mod === "string" ? mod : mod?.default;
+    if (typeof url !== "string") return false;
 
-        previewAudio?.pause();
-        previewAudio = new Audio(url);
-        previewAudio.volume = clamp01(MediaEngineStore.getOutputVolume() / 100 * computeMultiplier(name));
-        previewAudio.play().catch(e => logger.error("Preview failed", e));
-        return true;
-    } catch (e) {
-        logger.error("Preview failed", e);
-        return false;
+    previewAudio?.pause();
+    previewAudio = new Audio(url);
+    previewAudio.volume = clamp01(MediaEngineStore.getOutputVolume() / 100 * computeMultiplier(name));
+    previewAudio.play().catch(e => logger.error(`Preview of ${name} failed (audio element)`, e));
+    return true;
+}
+
+export type PreviewResult = "played" | "silent" | "unavailable";
+
+/** Plays a sound once at the volume it would actually play at */
+export function previewSound(name: string): PreviewResult {
+    const mult = computeMultiplier(name);
+    if (mult === 0) {
+        logger.info(`Preview of ${name}: volume is 0% (master ${settings.store.masterVolume}%, ringtone ${settings.store.ringtoneVolume}%, sound ${getSoundVolume(name)}%)`);
+        return "silent";
     }
+
+    // Preferred: Discord's own Sound class, so it uses Discord's output device and goes through the patched volume
+    const Sound = getSoundClass();
+    if (Sound) {
+        try {
+            const sound = new Sound(name, getSampleType(), 1);
+            if (sound.name === name && typeof sound._volume === "number" && typeof sound.play === "function") {
+                sound.play();
+                logger.info(`Preview of ${name}: played via Discord's Sound class at ${Math.round(mult * 100)}%`);
+                return "played";
+            }
+            logger.warn(`Preview of ${name}: Sound class has an unexpected shape`, sound);
+        } catch (e) {
+            logger.error(`Preview of ${name}: Sound class failed`, e);
+        }
+    } else {
+        logger.warn("Preview: couldn't find Discord's Sound class");
+    }
+
+    try {
+        if (previewWithAudioElement(name)) {
+            logger.info(`Preview of ${name}: played via audio element fallback (Windows default output device)`);
+            return "played";
+        }
+    } catch (e) {
+        logger.error(`Preview of ${name}: audio element fallback failed`, e);
+    }
+
+    logger.error(`Preview of ${name}: no way to play it was found`);
+    return "unavailable";
 }

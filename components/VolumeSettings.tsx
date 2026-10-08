@@ -6,7 +6,7 @@
 import { Button } from "@components/Button";
 import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
-import { Slider, TextInput, useEffect, useMemo, useState } from "@webpack/common";
+import { showToast, Slider, TextInput, useEffect, useMemo, useState } from "@webpack/common";
 
 import { getAllSoundNames, previewSound, reapplyVolumes } from "../audio";
 import { settings } from "../settings";
@@ -58,8 +58,15 @@ function VolumeInput({ value, label, onCommit }: { value: number; label: string;
     );
 }
 
+function previewSoundWithFeedback(name: string, label: string) {
+    const result = previewSound(name);
+    if (result === "silent")
+        showToast(`${label} is at 0%. Check the master, ringtone and this sound's volume.`, "failure");
+    else if (result === "unavailable")
+        showToast(`Couldn't preview ${label}. Open the console (Ctrl+Shift+I) for details.`, "failure");
+}
+
 function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; volume: number; sliderKey: number; onReset(): void; }) {
-    const [previewFailed, setPreviewFailed] = useState(false);
     // Sliders are uncontrolled, so remount after a typed value to move the handle
     const [typedNonce, setTypedNonce] = useState(0);
     const muted = volume === 0;
@@ -90,8 +97,8 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
                 <Button
                     size="small"
                     variant="secondary"
-                    title={previewFailed ? "Preview unavailable until Discord has played any sound once" : "Preview"}
-                    onClick={() => setPreviewFailed(!previewSound(sound.name))}
+                    title="Preview at its current volume"
+                    onClick={() => previewSoundWithFeedback(sound.name, sound.label)}
                 >
                     ▶
                 </Button>

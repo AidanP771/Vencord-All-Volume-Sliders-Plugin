@@ -7,7 +7,7 @@ import "./style.css";
 
 import definePlugin from "@utils/types";
 
-import { getMultiplier, reapplyVolumes, seenSounds } from "./audio";
+import { getMultiplier, previewSound, reapplyVolumes, seenSounds } from "./audio";
 import { openVolumeModal, VolumeSlidersPanelButton } from "./components/QuickAccess";
 import { settings } from "./settings";
 
@@ -48,6 +48,8 @@ export default definePlugin({
     getMultiplier,
     /** For debugging in the console: names of every sound played this session */
     seenSounds,
+    /** For debugging in the console: previewSound("message1") logs which playback path was used */
+    previewSound,
 
     start() {
         reapplyVolumes();
