@@ -1,0 +1,76 @@
+.vc-avs-root {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vc-avs-hint {
+    color: var(--text-muted);
+}
+
+.vc-avs-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.vc-avs-toolbar > :first-child {
+    flex: 1;
+}
+
+.vc-avs-category {
+    border: 1px solid var(--border-subtle, var(--background-modifier-accent));
+    border-radius: 8px;
+    padding: 4px 8px;
+}
+
+.vc-avs-category-header {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 0;
+    font-weight: 600;
+    color: var(--header-primary, var(--text-default));
+}
+
+.vc-avs-count {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.vc-avs-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(160px, 2fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid var(--border-subtle, var(--background-modifier-accent));
+}
+
+.vc-avs-label {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.vc-avs-name {
+    color: var(--text-normal, var(--text-default));
+}
+
+.vc-avs-id {
+    color: var(--text-muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vc-avs-slider {
+    margin-top: 16px;
+}
+
+.vc-avs-buttons {
+    display: flex;
+    gap: 4px;
+}
