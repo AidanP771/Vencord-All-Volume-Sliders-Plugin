@@ -43,6 +43,13 @@ export const settings = definePluginSettings({
         default: false,
         hidden: true,
     },
+    /** Seconds into the custom ringtone to start (and loop back to) */
+    customRingtoneStart: {
+        type: OptionType.NUMBER,
+        description: "Custom ringtone start point in seconds",
+        default: 0,
+        hidden: true,
+    },
     showPanelButton: {
         type: OptionType.BOOLEAN,
         description: "Show a quick-access button next to Mute/Deafen that opens these sliders",

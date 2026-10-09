@@ -10,7 +10,7 @@ import { Paragraph } from "@components/Paragraph";
 import { showToast, Slider, TextInput, useEffect, useMemo, useRef, useState } from "@webpack/common";
 
 import { getAllSoundNames, previewSound, reapplyVolumes, resolveSoundVolume, stopAllSounds } from "../audio";
-import { removeCustomRingtone, setCustomRingtone, useCustomRingtoneName } from "../customRingtone";
+import { removeCustomRingtone, setCustomRingtone, setRingtoneStart, useCustomRingtone } from "../customRingtone";
 import { settings } from "../settings";
 import { CATEGORIES, Category, compareSounds, getBaseSound, getSoundInfo, SoundInfo } from "../sounds";
 
@@ -27,20 +27,32 @@ function setVolume(name: string, value: number | undefined) {
     reapplyVolumes();
 }
 
-/** Number box for typing an exact volume. Commits on Enter or when it loses focus; invalid input reverts. */
-function VolumeInput({ value, label, onCommit }: { value: number; label: string; onCommit(v: number): void; }) {
-    const [text, setText] = useState(String(value));
-    useEffect(() => setText(String(value)), [value]);
+interface NumberInputProps {
+    value: number;
+    min: number;
+    max: number;
+    /** Decimal places to keep (0 = whole numbers) */
+    decimals?: number;
+    suffix: string;
+    ariaLabel: string;
+    onCommit(v: number): void;
+}
+
+/** Number box for typing an exact value. Commits on Enter or when it loses focus; invalid input reverts. */
+function NumberInput({ value, min, max, decimals = 0, suffix, ariaLabel, onCommit }: NumberInputProps) {
+    const format = (v: number) => String(Number(v.toFixed(decimals)));
+    const [text, setText] = useState(format(value));
+    useEffect(() => setText(format(value)), [value]);
 
     const commit = () => {
-        const trimmed = text.trim().replace(/%$/, "");
+        const trimmed = text.trim().replace(/(%|s)$/i, "");
         const n = Number(trimmed);
         if (!trimmed || !Number.isFinite(n)) {
-            setText(String(value));
+            setText(format(value));
             return;
         }
-        const v = Math.round(Math.min(Math.max(n, 0), 100));
-        setText(String(v));
+        const v = Number(Math.min(Math.max(n, min), max).toFixed(decimals));
+        setText(format(v));
         if (v !== value) onCommit(v);
     };
 
@@ -49,19 +61,29 @@ function VolumeInput({ value, label, onCommit }: { value: number; label: string;
             <input
                 className={cl("input")}
                 type="number"
-                min={0}
-                max={100}
-                step={1}
+                min={min}
+                max={max}
+                step={decimals ? 1 / 10 ** decimals : 1}
                 value={text}
-                aria-label={`${label} volume (0-100)`}
+                aria-label={ariaLabel}
                 onChange={e => setText(e.currentTarget.value)}
                 onBlur={commit}
                 onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
             />
-            <span className={cl("input-suffix")}>%</span>
+            <span className={cl("input-suffix")}>{suffix}</span>
         </label>
     );
 }
+
+function VolumeInput({ value, label, onCommit }: { value: number; label: string; onCommit(v: number): void; }) {
+    return <NumberInput value={value} min={0} max={100} suffix="%" ariaLabel={`${label} volume (0-100)`} onCommit={onCommit} />;
+}
+
+const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds - m * 60;
+    return `${m}:${s.toFixed(1).padStart(4, "0")}`;
+};
 
 function previewSoundWithFeedback(name: string, label: string) {
     const result = previewSound(name);
@@ -206,8 +228,24 @@ function GlobalSliders() {
 }
 
 function CustomRingtoneSection() {
-    const { customRingtoneIncoming, customRingtoneDialing } = settings.use(["customRingtoneIncoming", "customRingtoneDialing"]);
-    const fileName = useCustomRingtoneName();
+    const { customRingtoneIncoming, customRingtoneDialing, customRingtoneStart } =
+        settings.use(["customRingtoneIncoming", "customRingtoneDialing", "customRingtoneStart"]);
+    const { name: fileName, duration, trimming } = useCustomRingtone();
+    // Slider is uncontrolled, so remount it when the start point is typed or a new file resets it
+    const [startNonce, setStartNonce] = useState(0);
+    const maxStart = Math.max((duration ?? 0) - 0.5, 0);
+
+    const changeStart = async (seconds: number) => {
+        const error = await setRingtoneStart(seconds);
+        if (error) showToast(error, "failure");
+    };
+    // The slider may report every step while dragging; only trim once it settles
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const changeStartDebounced = (seconds: number) => {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => changeStart(seconds), 300);
+    };
+    useEffect(() => () => clearTimeout(debounceRef.current), []);
     const inputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
 
@@ -241,13 +279,13 @@ function CustomRingtoneSection() {
                         hidden
                         onChange={e => onFile(e.currentTarget.files?.[0])}
                     />
-                    <Button size="small" variant="primary" disabled={busy} onClick={() => inputRef.current?.click()}>
+                    <Button size="small" variant="primary" disabled={busy || trimming} onClick={() => inputRef.current?.click()}>
                         {busy ? "Checking..." : fileName ? "Change file..." : "Choose file..."}
                     </Button>
                     <Button
                         size="small"
                         variant="secondary"
-                        disabled={!fileName || !previewTarget}
+                        disabled={!fileName || !previewTarget || trimming}
                         title={previewTarget ? "Preview at the current ringtone volume" : "Turn on one of the switches below to preview"}
                         onClick={() => previewTarget && previewSoundWithFeedback(previewTarget, "Custom ringtone")}
                     >
@@ -266,6 +304,38 @@ function CustomRingtoneSection() {
                     </Button>
                 </div>
             </div>
+            {fileName && maxStart > 0 && (
+                <div className={cl("row")}>
+                    <div className={cl("label")}>
+                        <span className={cl("name")}>Start at</span>
+                        <span className={cl("id")}>
+                            {trimming ? "Applying..." : `Plays (and loops) from ${formatTime(customRingtoneStart)} of ${formatTime(duration!)}`}
+                        </span>
+                    </div>
+                    <Slider
+                        key={`${fileName}-${startNonce}`}
+                        className={cl("slider")}
+                        initialValue={Math.min(customRingtoneStart, maxStart)}
+                        minValue={0}
+                        maxValue={maxStart}
+                        markers={[0, maxStart]}
+                        stickToMarkers={false}
+                        onMarkerRender={formatTime}
+                        onValueRender={formatTime}
+                        onValueChange={changeStartDebounced}
+                    />
+                    <NumberInput
+                        value={customRingtoneStart}
+                        min={0}
+                        max={Number(maxStart.toFixed(1))}
+                        decimals={1}
+                        suffix="s"
+                        ariaLabel="Custom ringtone start point in seconds"
+                        onCommit={v => { changeStart(v); setStartNonce(n => n + 1); }}
+                    />
+                    <div />
+                </div>
+            )}
             <FormSwitch
                 title="Use for incoming calls"
                 description="Replaces every incoming ringtone, including seasonal ones"

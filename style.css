@@ -109,6 +109,6 @@
     margin-top: 4px;
 }
 
-.vc-avs-custom-ringtone .vc-avs-row {
+.vc-avs-custom-ringtone .vc-avs-row:first-child {
     grid-template-columns: minmax(140px, 1fr) auto;
 }
