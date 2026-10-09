@@ -3,6 +3,7 @@
 Individual volume sliders for every sound Discord plays:
 
 - **Ringtone**: one slider for the incoming-call ringtone *and* every variant (Beat, Halloween, seasonal…), plus per-variant overrides. It also works while a call is ringing.
+- **Custom ringtone**: pick your own audio file (up to 15 MB) under the Ringtone slider. Two switches choose whether it replaces incoming ringtones (all of them, seasonal ones included), the outgoing dialing sound, or both. The file is stored on this PC only and isn't synced to other devices.
 - **Call sounds**: outgoing "dialing" sound and other call sounds.
 - **Join / Leave**: users joining, leaving or being moved, plus disconnect and reconnect.
 - **Seasonal and themed sounds** (Halloween, Winter, and the ASMR/Bit/Bop/Ducky/Lo-fi message packs) follow the slider of the sound they replace. For example, Winter: Mute uses the Mute slider. Each one can still have its own value.

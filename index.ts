@@ -9,6 +9,7 @@ import definePlugin from "@utils/types";
 
 import { getMultiplier, previewSound, reapplyVolumes, resolveOutputChannel, seenSounds } from "./audio";
 import { openVolumeModal, VolumeSlidersPanelButton } from "./components/QuickAccess";
+import { loadCustomRingtone, resolveSoundSrc, unloadCustomRingtone } from "./customRingtone";
 import { settings } from "./settings";
 
 export default definePlugin({
@@ -37,6 +38,11 @@ export default definePlugin({
                     // setSinkId(outputChannel===DEFAULT ? normalDevice : otherDevice): lets previews ask for the normal device
                     match: /this\.outputChannel===(\i\.\i\.DEFAULT)/,
                     replace: "$self.resolveOutputChannel(this.outputChannel,$1)===$1"
+                },
+                {
+                    // audio.src = soundFiles(`./${this.name}.mp3`): swap in the custom ringtone when enabled
+                    match: /(?<=\i\.src=)(\i\(\d+\)\(`\.\/\$\{this\.name\}\.mp3`\))/,
+                    replace: "$self.resolveSoundSrc(this,$1)"
                 }
             ]
         },
@@ -64,7 +70,14 @@ export default definePlugin({
     /** For debugging in the console: previewSound("message1") logs which playback path was used */
     previewSound,
 
+    resolveSoundSrc,
+
     start() {
         reapplyVolumes();
+        loadCustomRingtone();
+    },
+
+    stop() {
+        unloadCustomRingtone();
     },
 });

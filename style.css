@@ -104,3 +104,11 @@
     outline: 2px solid var(--brand-500, var(--brand-experiment));
     outline-offset: -1px;
 }
+
+.vc-avs-custom-ringtone {
+    margin-top: 4px;
+}
+
+.vc-avs-custom-ringtone .vc-avs-row {
+    grid-template-columns: minmax(140px, 1fr) auto;
+}

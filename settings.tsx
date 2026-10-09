@@ -30,6 +30,19 @@ export const settings = definePluginSettings({
         hidden: true,
         onChange: () => reapplyVolumes(),
     },
+    // Custom ringtone toggles (the file itself lives in IndexedDB, see customRingtone.ts)
+    customRingtoneIncoming: {
+        type: OptionType.BOOLEAN,
+        description: "Use the custom ringtone for incoming calls (all ringtones)",
+        default: true,
+        hidden: true,
+    },
+    customRingtoneDialing: {
+        type: OptionType.BOOLEAN,
+        description: "Use the custom ringtone for outgoing calls (dialing)",
+        default: false,
+        hidden: true,
+    },
     showPanelButton: {
         type: OptionType.BOOLEAN,
         description: "Show a quick-access button next to Mute/Deafen that opens these sliders",

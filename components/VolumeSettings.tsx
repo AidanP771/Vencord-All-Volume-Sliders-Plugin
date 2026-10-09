@@ -4,11 +4,13 @@
  */
 
 import { Button } from "@components/Button";
+import { FormSwitch } from "@components/FormSwitch";
 import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
-import { showToast, Slider, TextInput, useEffect, useMemo, useState } from "@webpack/common";
+import { showToast, Slider, TextInput, useEffect, useMemo, useRef, useState } from "@webpack/common";
 
 import { getAllSoundNames, previewSound, reapplyVolumes, resolveSoundVolume, stopAllSounds } from "../audio";
+import { removeCustomRingtone, setCustomRingtone, useCustomRingtoneName } from "../customRingtone";
 import { settings } from "../settings";
 import { CATEGORIES, Category, compareSounds, getBaseSound, getSoundInfo, SoundInfo } from "../sounds";
 
@@ -198,7 +200,86 @@ function GlobalSliders() {
                 value={ringtoneVolume}
                 onChange={v => settings.store.ringtoneVolume = v}
             />
+            <CustomRingtoneSection />
         </section>
+    );
+}
+
+function CustomRingtoneSection() {
+    const { customRingtoneIncoming, customRingtoneDialing } = settings.use(["customRingtoneIncoming", "customRingtoneDialing"]);
+    const fileName = useCustomRingtoneName();
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [busy, setBusy] = useState(false);
+
+    // Preview whichever sound the custom file currently replaces (both go through the patched Sound class)
+    const previewTarget = customRingtoneIncoming ? "call_ringing" : customRingtoneDialing ? "call_calling" : undefined;
+
+    const onFile = async (file: File | undefined) => {
+        if (!file) return;
+        setBusy(true);
+        try {
+            const error = await setCustomRingtone(file);
+            showToast(error ?? `Custom ringtone set: ${file.name}`, error ? "failure" : "success");
+        } finally {
+            setBusy(false);
+            if (inputRef.current) inputRef.current.value = "";
+        }
+    };
+
+    return (
+        <div className={cl("custom-ringtone")}>
+            <div className={cl("row")}>
+                <div className={cl("label")}>
+                    <span className={cl("name")}>Custom ringtone</span>
+                    <span className={cl("id")}>{fileName ?? "None (Discord's own ringtone)"}</span>
+                </div>
+                <div className={cl("buttons")}>
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        accept="audio/*"
+                        hidden
+                        onChange={e => onFile(e.currentTarget.files?.[0])}
+                    />
+                    <Button size="small" variant="primary" disabled={busy} onClick={() => inputRef.current?.click()}>
+                        {busy ? "Checking..." : fileName ? "Change file..." : "Choose file..."}
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="secondary"
+                        disabled={!fileName || !previewTarget}
+                        title={previewTarget ? "Preview at the current ringtone volume" : "Turn on one of the switches below to preview"}
+                        onClick={() => previewTarget && previewSoundWithFeedback(previewTarget, "Custom ringtone")}
+                    >
+                        ▶
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="dangerSecondary"
+                        disabled={!fileName}
+                        onClick={async () => {
+                            await removeCustomRingtone();
+                            showToast("Custom ringtone removed. Discord's ringtone is back.", "message");
+                        }}
+                    >
+                        Remove
+                    </Button>
+                </div>
+            </div>
+            <FormSwitch
+                title="Use for incoming calls"
+                description="Replaces every incoming ringtone, including seasonal ones"
+                value={customRingtoneIncoming}
+                onChange={v => settings.store.customRingtoneIncoming = v}
+            />
+            <FormSwitch
+                title="Use for outgoing calls"
+                description="Replaces the dialing sound you hear while calling someone"
+                value={customRingtoneDialing}
+                onChange={v => settings.store.customRingtoneDialing = v}
+                hideBorder
+            />
+        </div>
     );
 }
 
