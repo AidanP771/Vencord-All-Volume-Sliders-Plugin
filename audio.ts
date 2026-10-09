@@ -8,7 +8,7 @@ import { cache } from "@webpack";
 import { MediaEngineStore } from "@webpack/common";
 
 import { settings } from "./settings";
-import { isRingtone, KNOWN_SOUND_NAMES } from "./sounds";
+import { getBaseSound, isRingtone, KNOWN_SOUND_NAMES } from "./sounds";
 
 export const logger = new Logger("AllVolumeSliders");
 
@@ -48,8 +48,17 @@ export function resolveOutputChannel(channel: unknown, defaultChannel: unknown) 
     return channel === PREVIEW_DEFAULT_CHANNEL ? defaultChannel : channel;
 }
 
+/**
+ * Per-sound volume (0-100). A themed variant (winter_mute) uses its own value if one is set,
+ * otherwise it follows its base sound's slider (mute).
+ */
+export function resolveSoundVolume(volumes: Record<string, number>, name: string) {
+    const base = getBaseSound(name);
+    return volumes[name] ?? (base !== name ? volumes[base] : undefined) ?? 100;
+}
+
 export function getSoundVolume(name: string) {
-    return settings.store.volumes[name] ?? 100;
+    return resolveSoundVolume(settings.store.volumes, name);
 }
 
 /** Combined 0..1 multiplier for a sound: master × (ringtone group) × per-sound */

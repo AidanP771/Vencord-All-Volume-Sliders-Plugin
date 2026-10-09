@@ -8,15 +8,18 @@ import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { showToast, Slider, TextInput, useEffect, useMemo, useState } from "@webpack/common";
 
-import { getAllSoundNames, previewSound, reapplyVolumes, stopAllSounds } from "../audio";
+import { getAllSoundNames, previewSound, reapplyVolumes, resolveSoundVolume, stopAllSounds } from "../audio";
 import { settings } from "../settings";
-import { CATEGORIES, Category, getSoundInfo, SoundInfo } from "../sounds";
+import { CATEGORIES, Category, compareSounds, getBaseSound, getSoundInfo, SoundInfo } from "../sounds";
 
 const cl = (name: string) => `vc-avs-${name}`;
 
+/** Sets a sound's own volume. `undefined`, or the value it would inherit anyway, clears it. */
 function setVolume(name: string, value: number | undefined) {
     const volumes = { ...settings.store.volumes };
-    if (value === undefined || value === 100) delete volumes[name];
+    const base = getBaseSound(name);
+    const inherited = base !== name ? volumes[base] ?? 100 : 100;
+    if (value === undefined || Math.round(value) === inherited) delete volumes[name];
     else volumes[name] = Math.round(value);
     settings.store.volumes = volumes;
     reapplyVolumes();
@@ -71,7 +74,20 @@ async function stopAllWithFeedback() {
     showToast(stopped ? `Stopped ${stopped} sound${stopped === 1 ? "" : "s"}` : "Nothing is playing", stopped ? "success" : "message");
 }
 
-function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; volume: number; sliderKey: number; onReset(): void; }) {
+interface SoundRowProps {
+    sound: SoundInfo;
+    /** Effective per-sound volume (own value, or inherited from the base sound) */
+    volume: number;
+    /** Whether this sound has its own value instead of the default/inherited one */
+    hasOverride: boolean;
+    /** For themed variants: the base sound's label and current volume */
+    baseLabel?: string;
+    baseVolume?: number;
+    sliderKey: number;
+    onReset(): void;
+}
+
+function SoundRow({ sound, volume, hasOverride, baseLabel, baseVolume, sliderKey, onReset }: SoundRowProps) {
     // Sliders are uncontrolled, so remount after a typed value to move the handle
     const [typedNonce, setTypedNonce] = useState(0);
     const muted = volume === 0;
@@ -80,10 +96,13 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
         <div className={cl("row")}>
             <div className={cl("label")}>
                 <span className={cl("name")}>{sound.label}</span>
-                <code className={cl("id")}>{sound.name}</code>
+                <code className={cl("id")}>
+                    {sound.name}{baseLabel && !hasOverride && ` · follows "${baseLabel}"`}
+                </code>
             </div>
             <Slider
-                key={`${sliderKey}-${typedNonce}`}
+                // baseVolume in the key: moving the base sound's slider moves its variants too
+                key={`${sliderKey}-${typedNonce}-${baseVolume ?? ""}`}
                 className={cl("slider")}
                 initialValue={volume}
                 minValue={0}
@@ -118,8 +137,8 @@ function SoundRow({ sound, volume, sliderKey, onReset }: { sound: SoundInfo; vol
                 <Button
                     size="small"
                     variant="secondary"
-                    title="Reset to 100%"
-                    disabled={volume === 100}
+                    title={baseLabel ? `Follow "${baseLabel}" again` : "Reset to 100%"}
+                    disabled={!hasOverride}
                     onClick={() => { setVolume(sound.name, undefined); onReset(); }}
                 >
                     Reset
@@ -198,6 +217,7 @@ export function VolumeSettings() {
             if (!map.has(info.category)) map.set(info.category, []);
             map.get(info.category)!.push(info);
         }
+        for (const list of map.values()) list.sort(compareSounds);
         return map;
     }, []);
 
@@ -255,7 +275,10 @@ export function VolumeSettings() {
                             <SoundRow
                                 key={s.name}
                                 sound={s}
-                                volume={volumes[s.name] ?? 100}
+                                volume={resolveSoundVolume(volumes, s.name)}
+                                hasOverride={volumes[s.name] !== undefined}
+                                baseLabel={s.base && getSoundInfo(s.base).label}
+                                baseVolume={s.base ? volumes[s.base] ?? 100 : undefined}
                                 sliderKey={resetNonce}
                                 onReset={bump}
                             />
