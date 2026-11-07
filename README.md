@@ -69,11 +69,17 @@ Userplugins need Vencord **built from source**; the normal Vencord installer can
 
 ### Developing (symlink instead of clone)
 
-From an admin Command Prompt:
+Link the plugin folder to your checkout so there's only one copy to edit. A junction doesn't need admin rights. From a Command Prompt:
 ```bat
-mklink /D C:\path\to\Vencord\src\userplugins\allVolumeSliders D:\Code\Vencord-All-Volume-Sliders-Plugin
+mklink /J C:\path\to\Vencord\src\userplugins\allVolumeSliders D:\Code\Vencord-All-Volume-Sliders-Plugin
 ```
-Leave `pnpm build --watch` running, then press **Ctrl+R** in Discord to reload after each change.
+Then add a `tsconfig.json` to your checkout that extends Vencord's. Without it the build can't resolve `@webpack`, `@components` and the other aliases, because esbuild follows the link outside the Vencord folder. The file is git-ignored, and the installer creates it for you if it's missing:
+```json
+{ "extends": "C:/path/to/Vencord/tsconfig.json" }
+```
+Leave `pnpm build --watch` running, then press **Ctrl+R** in Discord to reload after each change. The installer leaves a linked plugin folder alone, so running it only updates Vencord.
+
+If a Vencord update breaks the plugin's build, the installer builds Vencord without the plugin, so Discord keeps working, and tells you the plugin was left out.
 
 ## Testing checklist
 
