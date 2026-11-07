@@ -81,19 +81,6 @@ Leave `pnpm build --watch` running, then press **Ctrl+R** in Discord to reload a
 
 If a Vencord update breaks the plugin's build, the installer builds Vencord without the plugin, so Discord keeps working, and tells you the plugin was left out.
 
-## Testing checklist
-
-A second account (on your phone or in a browser) helps a lot here.
-
-- [ ] Set a slider to 0% or 20% and press ▶: the preview should be silent or quieter. (Preview needs Discord to have played any sound once since startup; if it doesn't work, toggle mute once first.)
-- [ ] **Join/leave**: the second account joins and leaves your voice channel.
-- [ ] **Dialing**: you call the second account (`call_calling`).
-- [ ] **Ringtone**: the second account calls you. Drag the Ringtone slider while it rings; the volume should change straight away.
-- [ ] **Messages**: the second account DMs you.
-- [ ] **Mute/deafen**: toggle them in a voice channel.
-- [ ] **Quick access**: the sliders button appears next to Mute/Deafen and opens the pop-up. Changes made there show up in the plugin settings too, and turning the setting off hides the button.
-- [ ] The master slider scales everything, and your settings survive a full Discord restart.
-
 ## Troubleshooting
 
 Open DevTools with **Ctrl+Shift+I**.

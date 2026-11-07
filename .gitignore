@@ -1,2 +1,5 @@
 # Machine-specific: extends the local Vencord checkout's tsconfig (see README, Developing)
 tsconfig.json
+
+# Personal manual-testing checklist
+TESTING.md
