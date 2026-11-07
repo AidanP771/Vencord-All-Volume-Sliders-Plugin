@@ -5,7 +5,7 @@
 
 import { Button } from "@components/Button";
 import { FormSwitch } from "@components/FormSwitch";
-import { HeadingTertiary } from "@components/Heading";
+import { Heading } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { showToast, Slider, TextInput, useEffect, useMemo, useRef, useState } from "@webpack/common";
 
@@ -385,7 +385,7 @@ export function VolumeSettings() {
     return (
         <div className={cl("root")}>
             <GlobalSliders />
-            <HeadingTertiary>Individual sounds</HeadingTertiary>
+            <Heading tag="h4">Individual sounds</Heading>
             <Paragraph className={cl("hint")}>
                 Drag a slider or type a value (0-100). Each sound multiplies with the master volume (and the ringtone volume for ringtones). Sounds Discord adds
                 later are listed under "Other" once they're found.
