@@ -40,6 +40,33 @@ $env:AVS_BRANCH="dev"; irm https://raw.githubusercontent.com/AidanP771/Vencord-A
 
 To switch back to the stable version, open a **new** PowerShell window and run the normal one-liner above.
 
+## Install (one line, macOS)
+
+Open **Terminal** and paste:
+
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/AidanP771/Vencord-All-Volume-Sliders-Plugin/main/install.sh)"
+```
+
+The command installs what's missing:
+- **git**, through Apple's Command Line Tools. A window pops up; finish it, then run the command again.
+- **Node.js**, with Homebrew if you have it. Otherwise it downloads a copy into `~/.avs-node`.
+- **pnpm**.
+
+None of this needs your password. It then builds Vencord from source into `~/Vencord` with this plugin included, quits Discord, and injects Vencord. When it asks which Discord to patch, pick yours. After that, start Discord, go to **Settings → Vencord → Plugins** and enable **AllVolumeSliders**.
+
+> **"Vencord doesn't seem to be injected"?** macOS stops Terminal from changing apps in `/Applications` until you allow it. Open **System Settings → Privacy & Security → App Management**, turn it on for your terminal app, and run the command again.
+
+**To update**, run the same command again. **Discord updates on macOS remove Vencord**, so if the plugin disappears after a Discord update, run the command again to put it back. To use a different folder, put `VENCORD_DIR="$HOME/somewhere/Vencord"` in front of the command.
+
+To try the `dev` branch:
+
+```sh
+AVS_BRANCH=dev /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/AidanP771/Vencord-All-Volume-Sliders-Plugin/dev/install.sh)"
+```
+
+To switch back, run the normal one-liner above.
+
 ## Manual install
 
 Userplugins need Vencord **built from source**; the normal Vencord installer can't load them.
@@ -69,21 +96,25 @@ Userplugins need Vencord **built from source**; the normal Vencord installer can
 
 ### Developing (symlink instead of clone)
 
-Link the plugin folder to your checkout so there's only one copy to edit. A junction doesn't need admin rights. From a Command Prompt:
+Link the plugin folder to your checkout so there's only one copy to edit. On Windows, use a junction, which doesn't need admin rights. From a Command Prompt:
 ```bat
 mklink /J C:\path\to\Vencord\src\userplugins\allVolumeSliders D:\Code\Vencord-All-Volume-Sliders-Plugin
+```
+On macOS:
+```sh
+ln -s ~/Code/Vencord-All-Volume-Sliders-Plugin ~/Vencord/src/userplugins/allVolumeSliders
 ```
 Then add a `tsconfig.json` to your checkout that extends Vencord's. Without it the build can't resolve `@webpack`, `@components` and the other aliases, because esbuild follows the link outside the Vencord folder. The file is git-ignored, and the installer creates it for you if it's missing:
 ```json
 { "extends": "C:/path/to/Vencord/tsconfig.json" }
 ```
-Leave `pnpm build --watch` running, then press **Ctrl+R** in Discord to reload after each change. The installer leaves a linked plugin folder alone, so running it only updates Vencord.
+Leave `pnpm build --watch` running, then press **Ctrl+R** (**Cmd+R** on Mac) in Discord to reload after each change. The installer leaves a linked plugin folder alone, so running it only updates Vencord.
 
 If a Vencord update breaks the plugin's build, the installer builds Vencord without the plugin, so Discord keeps working, and tells you the plugin was left out.
 
 ## Troubleshooting
 
-Open DevTools with **Ctrl+Shift+I**.
+Open DevTools with **Ctrl+Shift+I** (**Cmd+Option+I** on Mac).
 
 - The console shows `Patch by AllVolumeSliders had no effect`: a Discord update changed the sound code, so the patch in `index.ts` needs updating.
 - To list every sound that has played this session, run `Vencord.Plugins.plugins.AllVolumeSliders.seenSounds` in the console.
